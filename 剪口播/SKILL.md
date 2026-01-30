@@ -28,14 +28,19 @@ pos: 转录+识别，到用户网页审核为止
 
 ```
 output/
-└── YYYY-MM-DD_视频名/     # 日期+视频名
-    ├── 剪口播/            # 本 skill 输出
-    │   ├── audio.mp3
-    │   ├── volcengine_result.json
-    │   ├── subtitles_words.json
-    │   ├── auto_selected.json
-    │   └── review.html
-    └── 字幕/              # 字幕 skill 输出
+└── YYYY-MM-DD_视频名/
+    ├── 剪口播/
+    │   ├── 1_转录/
+    │   │   ├── audio.mp3
+    │   │   ├── volcengine_result.json
+    │   │   └── subtitles_words.json
+    │   ├── 2_分析/
+    │   │   ├── readable.txt
+    │   │   ├── auto_selected.json
+    │   │   └── 口误分析.md
+    │   └── 3_审核/
+    │       └── review.html
+    └── 字幕/
         └── ...
 ```
 
@@ -72,16 +77,18 @@ output/
 VIDEO_PATH="/path/to/视频.mp4"
 VIDEO_NAME=$(basename "$VIDEO_PATH" .mp4)
 DATE=$(date +%Y-%m-%d)
-OUTPUT_DIR="output/${DATE}_${VIDEO_NAME}/剪口播"
+BASE_DIR="output/${DATE}_${VIDEO_NAME}/剪口播"
 
-# 创建目录（已存在则跳过）
-mkdir -p "$OUTPUT_DIR"
-cd "$OUTPUT_DIR"
+# 创建子目录
+mkdir -p "$BASE_DIR/1_转录" "$BASE_DIR/2_分析" "$BASE_DIR/3_审核"
+cd "$BASE_DIR"
 ```
 
 ### 步骤 1-3: 转录
 
 ```bash
+cd 1_转录
+
 # 1. 提取音频（文件名有冒号需加 file: 前缀）
 ffmpeg -i "file:$VIDEO_PATH" -vn -acodec libmp3lame -y audio.mp3
 
@@ -100,6 +107,8 @@ SKILL_DIR="/Users/chengfeng/Desktop/AIos/剪辑Agent/.claude/skills/剪口播"
 ```bash
 node "$SKILL_DIR/scripts/generate_subtitles.js" volcengine_result.json
 # 输出: subtitles_words.json
+
+cd ..
 ```
 
 ### 步骤 5: AI 分析口误（手动，禁止脚本）
@@ -107,8 +116,10 @@ node "$SKILL_DIR/scripts/generate_subtitles.js" volcengine_result.json
 #### 5.1 生成易读格式
 
 ```bash
+cd 2_分析
+
 node -e "
-const data = require('./subtitles_words.json');
+const data = require('../1_转录/subtitles_words.json');
 let output = [];
 data.forEach((w, i) => {
   if (w.isGap) {
@@ -118,7 +129,7 @@ data.forEach((w, i) => {
     output.push(i + '|' + w.text + '|' + w.start.toFixed(2) + '-' + w.end.toFixed(2));
   }
 });
-require('fs').writeFileSync('readable.txt', output.join('\n'));
+require('fs').writeFileSync('readable.txt', output.join('\\n'));
 "
 ```
 
@@ -163,8 +174,11 @@ Read readable.txt offset=300 limit=300
 ### 步骤 6-7: 审核
 
 ```bash
+cd ../3_审核
+
 # 6. 生成审核网页
-node "$SKILL_DIR/scripts/generate_review.js" subtitles_words.json auto_selected.json audio.mp3
+node "$SKILL_DIR/scripts/generate_review.js" ../1_转录/subtitles_words.json ../2_分析/auto_selected.json ../1_转录/audio.mp3
+# 输出: review.html
 
 # 7. 启动审核服务器
 node "$SKILL_DIR/scripts/review_server.js" 8899 "$VIDEO_PATH"
