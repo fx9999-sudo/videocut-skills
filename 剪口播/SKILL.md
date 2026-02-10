@@ -276,5 +276,5 @@ node "$SKILL_DIR/scripts/review_server.js" 8899 "$VIDEO_PATH"
 ```bash
 cd /Users/chengfeng/Desktop/AIos/剪辑Agent/.claude/skills
 cp .env.example .env
-# 编辑 .env 填入 VOLCENGINE_API_KEY=xxx
+# 编辑 .env 填入 VOLCENGINE_API_KEY=98cc4268-28b3-4cb5-a8d9-7ec8dfaa8ab8
 ```
